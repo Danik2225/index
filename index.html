@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <!-- Эти строки делают из HTML полноценное приложение для iPhone -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <title>Danya RC</title>
+    <style>
+        body { 
+            background: #000; 
+            color: #0ff; 
+            font-family: sans-serif; 
+            margin: 0; 
+            height: 100vh; 
+            overflow: hidden; 
+            -webkit-user-select: none; /* Запрещаем выделять текст, как в игре */
+        }
+        .header { padding: 40px; font-size: 20px; text-align: center; text-shadow: 0 0 10px #0ff; }
+        
+        /* Джойстик (Реле 1 и 2 - моторы) */
+        #joyZone { position: absolute; bottom: 60px; left: 40px; width: 140px; height: 140px; border: 3px solid #0ff; border-radius: 50%; }
+        #stick { position: absolute; top: 40px; left: 40px; width: 60px; height: 60px; background: #0ff; border-radius: 50%; box-shadow: 0 0 20px #0ff; }
+        
+        /* Кнопка ФАРЫ (Реле 3) */
+        #lightBtn { position: absolute; bottom: 80px; right: 50px; width: 100px; height: 100px; border: 3px solid #f05; border-radius: 50%; color: #f05; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .active { background: #f05 !important; color: #fff !important; box-shadow: 0 0 30px #f05; }
+    </style>
+</head>
+<body>
+    <div class="header">DANYA 4x4 CONTROL</div>
+    
+    <div id="joyZone">
+        <div id="stick"></div>
+    </div>
+
+    <div id="lightBtn">LIGHT</div>
+
+    <script>
+        // Логика будет управлять твоими тремя реле через NodeMCU
+        const stick = document.getElementById('stick');
+        const lightBtn = document.getElementById('lightBtn');
+
+        lightBtn.ontouchstart = () => {
+            lightBtn.classList.toggle('active');
+            // Команда для Реле 3 (Фара)
+            fetch("http://192.168.4.1/light").catch(()=>{});
+        };
+
+        stick.ontouchmove = (e) => {
+            let touch = e.touches[0];
+            let rect = document.getElementById('joyZone').getBoundingClientRect();
+            let y = touch.clientY - rect.top - 70;
+            if (y < -30) fetch("http://192.168.4.1/forward").catch(()=>{}); // Моторы вперед
+            if (y > 30) fetch("http://192.168.4.1/stop").catch(()=>{}); 
+            stick.style.transform = `translateY(${y}px)`;
+        };
+
+        stick.ontouchend = () => {
+            stick.style.transform = `translateY(0px)`;
+            fetch("http://192.168.4.1/stop").catch(()=>{});
+        };
+    </script>
+</body>
+</html>
