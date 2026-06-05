@@ -1,67 +1,333 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <!-- Эти строки делают из HTML полноценное приложение для iPhone -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golden Cloud Hub</title>
     
-    <title>Danya RC</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        
         body { 
-            background: #000; 
-            color: #0ff; 
-            font-family: sans-serif; 
-            margin: 0; 
-            height: 100vh; 
-            overflow: hidden; 
-            -webkit-user-select: none; /* Запрещаем выделять текст, как в игре */
+            background: radial-gradient(circle at center, #14120e 0%, #070605 100%); 
+            color: #fff; 
+            min-height: 100vh; 
+            padding-bottom: 90px; 
         }
-        .header { padding: 40px; font-size: 20px; text-align: center; text-shadow: 0 0 10px #0ff; }
         
-        /* Джойстик (Реле 1 и 2 - моторы) */
-        #joyZone { position: absolute; bottom: 60px; left: 40px; width: 140px; height: 140px; border: 3px solid #0ff; border-radius: 50%; }
-        #stick { position: absolute; top: 40px; left: 40px; width: 60px; height: 60px; background: #0ff; border-radius: 50%; box-shadow: 0 0 20px #0ff; }
+        .app-content { max-width: 800px; width: 100%; margin: 0 auto; padding: 15px; }
+        .screen { display: none; animation: fadeIn 0.3s ease; }
+        .screen.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        h2 { 
+            font-size: 1.5rem; 
+            margin-bottom: 20px; 
+            font-weight: 700;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #ffe082 0%, #d4af37 50%, #a17f1a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+        }
+
+        /* СПИСОК ГРУПП */
+        .group-list { display: flex; flex-direction: column; gap: 15px; }
         
-        /* Кнопка ФАРЫ (Реле 3) */
-        #lightBtn { position: absolute; bottom: 80px; right: 50px; width: 100px; height: 100px; border: 3px solid #f05; border-radius: 50%; color: #f05; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-        .active { background: #f05 !important; color: #fff !important; box-shadow: 0 0 30px #f05; }
+        /* Монолитная и чистая золотая карточка входа */
+        .group-card-btn { 
+            background: linear-gradient(135deg, rgba(36, 32, 23, 0.7) 0%, rgba(18, 16, 12, 0.9) 100%);
+            border: 1px solid #d4af37;
+            border-radius: 16px; 
+            padding: 20px; 
+            text-align: left;
+            cursor: pointer;
+            width: 100%;
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .group-card-btn:hover {
+            transform: translateY(-4px);
+            border-color: #fff;
+            box-shadow: 0 8px 25px rgba(212, 175, 55, 0.25);
+        }
+
+        .group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .group-name { font-size: 1.2rem; font-weight: bold; color: #f5d061; }
+        .group-status { background: linear-gradient(135deg, #d4af37, #856404); color: #000; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; }
+        .click-to-enter { font-size: 0.8rem; color: #a17f1a; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
+
+        /* ФОРМА СОЗДАНИЯ */
+        .create-panel { background: rgba(20, 18, 14, 0.9); border: 1px solid #d4af37; border-radius: 16px; padding: 20px; }
+        .form-input { width: 100%; background: #0e0d0a; border: 1px solid rgba(212,175,55,0.3); padding: 12px; color: white; border-radius: 10px; font-size: 1rem; margin-bottom: 15px; outline: none; }
+        .form-input:focus { border-color: #f5d061; }
+
+        /* СТРИМ ЗОНА */
+        .main-stage {
+            position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000;
+            border-radius: 16px; overflow: hidden; border: 2px solid #d4af37;
+            box-shadow: 0 10px 40px rgba(212,175,55,0.15);
+        }
+        #remoteVideo { width: 100%; height: 100%; object-fit: contain; }
+
+        .webcam-overlay {
+            position: absolute; bottom: 15px; right: 15px; width: 100px; height: 100px;
+            border-radius: 50%; border: 3px solid #f5d061;
+            box-shadow: 0 0 20px rgba(245,208,97,0.4); overflow: hidden;
+            cursor: move; z-index: 10; transition: all 0.3s;
+        }
+        .webcam-overlay.large { width: 180px; height: 180px; border-radius: 12px; }
+        #localCameraView { width: 100%; height: 100%; object-fit: cover; }
+
+        /* КНОПКИ */
+        .controls-card { background: rgba(20, 18, 14, 0.9); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 16px; padding: 15px; margin-top: 15px; }
+        .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+        
+        .btn {
+            background: linear-gradient(135deg, #ffe082 0%, #d4af37 50%, #a17f1a 100%);
+            color: #000; border: none; padding: 12px 18px;
+            border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 0.9rem; flex: 1;
+        }
+        .btn-danger { background: linear-gradient(135deg, #ff416c, #ff4b2b); color: white; }
+
+        /* ЧАТ */
+        .mini-chat { background: #0e0d0a; border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 16px; height: 150px; display: flex; flex-direction: column; overflow: hidden; margin-top: 15px; }
+        .chat-messages { flex: 1; padding: 12px; overflow-y: auto; font-size: 0.9rem; display: flex; flex-direction: column; gap: 6px; }
+        .chat-input-area { display: flex; border-top: 1px solid rgba(212, 175, 55, 0.2); }
+        .chat-input-area input { flex: 1; background: transparent; border: none; padding: 12px; color: white; outline: none; }
+        .chat-input-area button { background: linear-gradient(135deg, #d4af37, #a17f1a); border: none; padding: 0 20px; color: black; font-weight: bold; cursor: pointer; }
+
+        /* НАВИГАЦИЯ */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 75px;
+            background: rgba(10, 9, 7, 0.95); border-top: 1px solid #d4af37;
+            display: flex; justify-content: space-around; align-items: center; z-index: 1000;
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #5a5343; background: none; border: none; cursor: pointer; font-size: 0.75rem; font-weight: bold; gap: 4px; }
+        .nav-item svg { width: 22px; height: 22px; fill: currentColor; }
+        .nav-item.active { color: #f5d061; }
+        
+        .nav-item.btn-create-master { 
+            width: 62px; height: 62px; 
+            background: linear-gradient(135deg, #ffe082 0%, #d4af37 40%, #a17f1a 100%); 
+            border-radius: 50%; margin-top: -25px; color: #000; 
+            box-shadow: 0 8px 25px rgba(212, 175, 55, 0.5);
+        }
+        .nav-item.btn-create-master svg { fill: #000; width: 26px; height: 26px; }
     </style>
 </head>
 <body>
-    <div class="header">DANYA 4x4 CONTROL</div>
-    
-    <div id="joyZone">
-        <div id="stick"></div>
+
+    <div class="app-content">
+        
+        <div id="screen-menu" class="screen active">
+            <h2>Все группы</h2>
+            <div class="group-list" id="custom-groups-container">
+                </div>
+        </div>
+
+        <div id="screen-add-group" class="screen">
+            <h2>Создать новую группу</h2>
+            <div class="create-panel">
+                <input type="text" id="new-group-name" class="form-input" placeholder="Название группы (например: Д)">
+                <input type="text" id="new-group-desc" class="form-input" placeholder="Краткое описание группы">
+                <button class="btn" onclick="createNewGroupRow()">Подтвердить и сохранить</button>
+            </div>
+        </div>
+
+        <div id="screen-stream-room" class="screen">
+            <h2 id="active-room-title">Комната</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
+                <div class="main-stage">
+                    <video id="remoteVideo" autoplay playsinline></video>
+                    <div class="webcam-overlay" id="webcamBox">
+                        <video id="localCameraView" autoplay playsinline muted></video>
+                    </div>
+                </div>
+
+                <div class="controls-card">
+                    <div class="btn-row">
+                        <button class="btn" id="startShareBtn">Включить Экран + Микрофон</button>
+                        <button class="btn btn-danger" id="stopShareBtn" style="display: none;">Остановить стрим</button>
+                        <button class="btn" id="btnCamSize" style="background:#5a5343; color:#fff;">Форма камеры</button>
+                    </div>
+                    <button class="btn" id="autoConnectBtn" style="width:100%; margin-top:5px; background: linear-gradient(135deg, #f5d061, #a17f1a);">Подключиться к стриму друга</button>
+                </div>
+
+                <div class="mini-chat">
+                    <div class="chat-messages" id="chatMsgs"></div>
+                    <div class="chat-input-area">
+                        <input type="text" id="chatInput" placeholder="Сообщение в группу...">
+                        <button onclick="sendChatMessage()">OK</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-chats" class="screen"><h2>Чаты</h2></div>
+        <div id="screen-settings" class="screen"><h2>Опции</h2></div>
     </div>
 
-    <div id="lightBtn">LIGHT</div>
+    <nav class="bottom-nav">
+        <button class="nav-item active" id="tab-menu" onclick="switchTab('screen-menu', this)"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span>Menu</span></button>
+        <button class="nav-item" onclick="switchTab('screen-chats', this)"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg><span>Chats</span></button>
+        
+        <button class="nav-item btn-create-master" onclick="switchTab('screen-add-group', this)"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>
+        
+        <button class="nav-item" onclick="switchTab('screen-settings', this)"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58z"/></svg><span>Options</span></button>
+    </nav>
 
     <script>
-        // Логика будет управлять твоими тремя реле через NodeMCU
-        const stick = document.getElementById('stick');
-        const lightBtn = document.getElementById('lightBtn');
+        // Достаем сохраненные группы или берем дефолтную
+        let groups = JSON.parse(localStorage.getItem('saved_cyber_groups')) || [
+            { name: "Main Cyber Team", desc: "Главная секретная комната связи." }
+        ];
 
-        lightBtn.ontouchstart = () => {
-            lightBtn.classList.toggle('active');
-            // Команда для Реле 3 (Фара)
-            fetch("http://192.168.4.1/light").catch(()=>{});
-        };
+        let peer = null;
+        let combinedStream = null;
+        let selectedRoomName = "";
 
-        stick.ontouchmove = (e) => {
-            let touch = e.touches[0];
-            let rect = document.getElementById('joyZone').getBoundingClientRect();
-            let y = touch.clientY - rect.top - 70;
-            if (y < -30) fetch("http://192.168.4.1/forward").catch(()=>{}); // Моторы вперед
-            if (y > 30) fetch("http://192.168.4.1/stop").catch(()=>{}); 
-            stick.style.transform = `translateY(${y}px)`;
-        };
+        const webcamBox = document.getElementById('webcamBox');
+        const localCameraView = document.getElementById('localCameraView');
+        const remoteVideo = document.getElementById('remoteVideo');
 
-        stick.ontouchend = () => {
-            stick.style.transform = `translateY(0px)`;
-            fetch("http://192.168.4.1/stop").catch(()=>{});
-        };
+        // Отрисовка групп в меню
+        function renderGroupsList() {
+            const container = document.getElementById('custom-groups-container');
+            container.innerHTML = "";
+            
+            groups.forEach((group) => {
+                const btn = document.createElement('button');
+                btn.className = 'group-card-btn';
+                // Чистый клик на всю карточку без конфликтов кнопок
+                btn.setAttribute('onclick', `openStreamRoom("${group.name}")`);
+                btn.innerHTML = `
+                    <div class="group-header">
+                        <div class="group-name">${group.name}</div>
+                        <div class="group-status">Войти</div>
+                    </div>
+                    <p style="font-size:0.85rem; color:#b5ad9e;">${group.desc}</p>
+                    <div class="click-to-enter">▶ Нажми, чтобы запустить стрим-комнату</div>
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        // Логика добавления группы через плюс
+        function createNewGroupRow() {
+            const nameInput = document.getElementById('new-group-name');
+            const descInput = document.getElementById('new-group-desc');
+            
+            if (!nameInput.value.trim()) { alert("Укажи имя группы!"); return; }
+
+            groups.push({
+                name: nameInput.value.trim(),
+                desc: descInput.value.trim() || "Приватная комната."
+            });
+
+            localStorage.setItem('saved_cyber_groups', JSON.stringify(groups));
+            renderGroupsList();
+
+            nameInput.value = ""; descInput.value = "";
+            switchTab('screen-menu', document.getElementById('tab-menu'));
+        }
+
+        // Вход в стрим-комнату
+        function openStreamRoom(groupName) {
+            selectedRoomName = groupName;
+            document.getElementById('active-room-title').textContent = "Группа: " + groupName;
+            
+            if(peer) { peer.destroy(); }
+
+            // Безопасный хэш из названия группы (убираем пробелы и спецсимволы)
+            let cleanId = encodeURIComponent(groupName.trim().toLowerCase());
+            
+            // Запускаем P2P узел
+            peer = new Peer(cleanId + '-host'); 
+
+            peer.on('open', () => {
+                logToChat("Защита", `Шифрование настроено. Комната активна.`);
+            });
+
+            peer.on('call', call => {
+                call.answer(combinedStream);
+                call.on('stream', rStream => remoteVideo.srcObject = rStream);
+            });
+
+            switchTab('screen-stream-room', null);
+        }
+
+        // Автоподключение к стриму друга
+        document.getElementById('autoConnectBtn').addEventListener('click', () => {
+            let cleanId = encodeURIComponent(selectedRoomName.trim().toLowerCase());
+            let fake = new MediaStream();
+            let call = peer.call(cleanId + '-host', combinedStream || fake);
+            call.on('stream', rStream => remoteVideo.srcObject = rStream);
+            logToChat("Система", "Подключаемся к видеопотоку в этой комнате...");
+        });
+
+        // Стрим Экрана + Микрофон
+        document.getElementById('startShareBtn').addEventListener('click', async () => {
+            try {
+                const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localCameraView.srcObject = cameraStream;
+
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+
+                combinedStream = new MediaStream();
+                combinedStream.addTrack(screenStream.getVideoTracks()[0]);
+                combinedStream.addTrack(cameraStream.getAudioTracks()[0]); 
+
+                document.getElementById('startShareBtn').style.display = 'none';
+                document.getElementById('stopShareBtn').style.display = 'block';
+
+                screenStream.getVideoTracks()[0].onended = () => { stopStream(); };
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        function stopStream() {
+            if(combinedStream) combinedStream.getTracks().forEach(t => t.stop());
+            if(localCameraView.srcObject) localCameraView.srcObject.getTracks().forEach(t => t.stop());
+            document.getElementById('startShareBtn').style.display = 'block';
+            document.getElementById('stopShareBtn').style.display = 'none';
+        }
+        document.getElementById('stopStream').addEventListener('click', stopStream);
+
+        function switchTab(screenId, btn) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            if(btn) btn.classList.add('active');
+        }
+
+        document.getElementById('btnCamSize').addEventListener('click', () => { webcamBox.classList.toggle('large'); });
+
+        function sendChatMessage() {
+            const inp = document.getElementById('chatInput');
+            if(!inp.value.trim()) return;
+            logToChat("Вы", inp.value);
+            inp.value = "";
+        }
+        function logToChat(sender, txt) {
+            const msgBox = document.getElementById('chatMsgs');
+            const div = document.createElement('div');
+            div.innerHTML = `<strong style="color:#f5d061">${sender}:</strong> ${txt}`;
+            msgBox.appendChild(div);
+            msgBox.scrollTop = msgBox.scrollHeight;
+        }
+
+        renderGroupsList();
     </script>
 </body>
 </html>
