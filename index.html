@@ -34,9 +34,9 @@
         .form-input { width: 100%; background: #0e0d0a; border: 1px solid rgba(212,175,55,0.3); padding: 12px; color: white; border-radius: 10px; margin-bottom: 15px; outline: none; }
 
         .main-stage { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 16px; overflow: hidden; border: 2px solid #d4af37; }
-        #remoteVideo { width: 100%; height: 100%; object-fit: contain; }
+        #remoteVideo { width: 100%; height: 100%; object-fit: contain; background: #000; }
 
-        .webcam-overlay { position: absolute; bottom: 15px; right: 15px; width: 100px; height: 100px; border-radius: 50%; border: 3px solid #f5d061; overflow: hidden; z-index: 10; }
+        .webcam-overlay { position: absolute; bottom: 15px; right: 15px; width: 100px; height: 100px; border-radius: 50%; border: 3px solid #f5d061; overflow: hidden; z-index: 10; background: #111; }
         #localCameraView { width: 100%; height: 100%; object-fit: cover; }
 
         .controls-card { background: rgba(20, 18, 14, 0.9); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 16px; padding: 15px; margin-top: 15px; }
@@ -44,19 +44,17 @@
         .btn { background: linear-gradient(135deg, #ffe082 0%, #d4af37 50%, #a17f1a 100%); color: #000; border: none; padding: 12px 18px; border-radius: 10px; font-weight: 800; cursor: pointer; flex: 1; }
         .btn-danger { background: linear-gradient(135deg, #ff416c, #ff4b2b); color: white; }
 
-        /* Блок ссылки */
         .share-link-box { background: #1a1610; border: 1px dashed #d4af37; border-radius: 10px; padding: 12px; margin-bottom: 10px; font-size: 0.85rem; }
         .share-link-text { color: #ffe082; word-break: break-all; font-weight: bold; margin-bottom: 8px; }
 
-        .mini-chat { background: #0e0d0a; border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 16px; height: 120px; display: flex; flex-direction: column; overflow: hidden; margin-top: 15px; }
-        .chat-messages { flex: 1; padding: 12px; overflow-y: auto; font-size: 0.9rem; }
+        .mini-chat { background: #0e0d0a; border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 16px; height: 60px; display: flex; flex-direction: column; overflow: hidden; margin-top: 15px; }
+        .chat-messages { flex: 1; padding: 12px; overflow-y: auto; font-size: 0.9rem; text-align: center; color: #b5ad9e; }
 
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 75px; background: rgba(10, 9, 7, 0.95); border-top: 1px solid #d4af37; display: flex; justify-content: space-around; align-items: center; z-index: 1000; }
         .nav-item { display: flex; flex-direction: column; align-items: center; color: #5a5343; background: none; border: none; cursor: pointer; font-size: 0.75rem; font-weight: bold; gap: 4px; }
         .nav-item svg { width: 22px; height: 22px; fill: currentColor; }
         .nav-item.active { color: #f5d061; }
         .nav-item.btn-create-master { width: 62px; height: 62px; background: linear-gradient(135deg, #ffe082 0%, #d4af37 40%, #a17f1a 100%); border-radius: 50%; margin-top: -25px; color: #000; }
-        .nav-item.btn-create-master svg { fill: #000; width: 26px; height: 26px; }
     </style>
 </head>
 <body>
@@ -81,7 +79,7 @@
             
             <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
                 <div class="share-link-box">
-                    <div>🔗 Отправь эту ссылку на другое устройство для входа:</div>
+                    <div>🔗 Ссылка для входа с другого устройства:</div>
                     <div class="share-link-text" id="share-link-url">Генерация ссылки...</div>
                     <button class="btn" style="padding: 6px 12px; font-size: 0.8rem;" onclick="copyRoomLink()">Скопировать ссылку</button>
                 </div>
@@ -93,13 +91,13 @@
 
                 <div class="controls-card">
                     <div class="btn-row">
-                        <button class="btn" id="startShareBtn">Включить Экран + Микрофон</button>
-                        <button class="btn btn-danger" id="stopShareBtn" style="display: none;">Остановить стрим</button>
+                        <button class="btn" id="startShareBtn">Включить Камеру / Экран</button>
+                        <button class="btn btn-danger" id="stopShareBtn" style="display: none;">Выключить трансляцию</button>
                     </div>
-                    <button class="btn" id="autoConnectBtn" style="width:100%; background: linear-gradient(135deg, #f5d061, #a17f1a);">Подключиться к стриму в этой комнате</button>
+                    <button class="btn" id="autoConnectBtn" style="width:100%; background: linear-gradient(135deg, #f5d061, #a17f1a);">Подключиться к трансляции друга</button>
                 </div>
 
-                <div class="mini-chat"><div class="chat-messages" id="chatMsgs"></div></div>
+                <div class="mini-chat"><div class="chat-messages" id="statusLog">Система готова к подключению</div></div>
             </div>
         </div>
     </div>
@@ -114,9 +112,12 @@
             { name: "Main Cyber Team", desc: "Главная секретная комната связи." }
         ];
 
-        let peer = null, combinedStream = null, selectedRoomName = "";
+        let peer = null, myStream = null, selectedRoomName = "";
         const localCameraView = document.getElementById('localCameraView');
         const remoteVideo = document.getElementById('remoteVideo');
+        const statusLog = document.getElementById('statusLog');
+
+        function log(text) { statusLog.textContent = text; }
 
         function renderGroupsList() {
             const container = document.getElementById('custom-groups-container');
@@ -144,7 +145,6 @@
             groups.push({ name: nameInput.value.trim(), desc: descInput.value.trim() || "Приватная комната." });
             localStorage.setItem('saved_cyber_groups', JSON.stringify(groups));
             renderGroupsList();
-
             nameInput.value = ""; descInput.value = "";
             switchTab('screen-menu', document.getElementById('tab-menu'));
         }
@@ -153,38 +153,99 @@
             selectedRoomName = groupName;
             document.getElementById('active-room-title').textContent = "Группа: " + groupName;
             
-            // Генерируем ссылку для обмена
             let cleanId = encodeURIComponent(groupName.trim().toLowerCase());
-            let shareUrl = window.location.origin + window.location.pathname + "?room=" + cleanId;
-            document.getElementById('share-link-url').textContent = shareUrl;
+            let baseUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+            if(baseUrl.endsWith('index.html')) baseUrl = baseUrl.replace('index.html', '');
+            if(!baseUrl.endsWith('/')) baseUrl += '/';
+
+            document.getElementById('share-link-url').textContent = baseUrl + "?room=" + cleanId;
 
             if(peer) { peer.destroy(); }
-            peer = new Peer(cleanId + '-host'); 
 
+            // Конфигурация серверов обхода защиты Apple/Google
+            peer = new Peer(cleanId + '-host', {
+                config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] }
+            }); 
+
+            peer.on('open', () => { log("Комната готова. Ожидание сигнала..."); });
+
+            // Принимаем входящий звонок
             peer.on('call', call => {
-                call.answer(combinedStream);
-                call.on('stream', rStream => remoteVideo.srcObject = rStream);
+                log("Получен поток от друга! Выводим на экран...");
+                call.answer(myStream);
+                call.on('stream', rStream => {
+                    remoteVideo.srcObject = rStream;
+                    remoteVideo.play().catch(e => console.log("Автоплей блок:", e));
+                });
             });
 
             switchTab('screen-stream-room', null);
         }
 
         function copyRoomLink() {
-            let linkText = document.getElementById('share-link-url').textContent;
-            navigator.clipboard.writeText(linkText);
-            alert("Ссылка скопирована! Перешли её на другое устройство.");
+            navigator.clipboard.writeText(document.getElementById('share-link-url').textContent);
+            alert("Ссылка скопирована!");
         }
 
-        // ПРОВЕРКА: Если зашли по ссылке извне
+        // Кнопка ЗАПУСКА трансляции (умный выбор: Комп или Телефон)
+        document.getElementById('startShareBtn').addEventListener('click', async () => {
+            try {
+                // Проверяем, мобилка это или комп
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                
+                if (isMobile) {
+                    // На телефоне включаем строго Камеру
+                    myStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+                } else {
+                    // На компе включаем Экран
+                    myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                }
+                
+                localCameraView.srcObject = myStream;
+                localCameraView.play();
+
+                document.getElementById('startShareBtn').style.display = 'none';
+                document.getElementById('stopShareBtn').style.display = 'block';
+                log("Твоя трансляция запущена. Друг может подключаться!");
+            } catch (err) { 
+                console.error(err); 
+                log("Ошибка доступа к камере/экрану.");
+            }
+        });
+
+        // Кнопка ПОДКЛЮЧЕНИЯ (забрать поток у хоста)
+        document.getElementById('autoConnectBtn').addEventListener('click', () => {
+            let cleanId = encodeURIComponent(selectedRoomName.trim().toLowerCase());
+            log("Связываемся с комнатой...");
+            
+            // Отправляем пустой поток, если свою камеру ещё не включили
+            let streamToSend = myStream || new MediaStream();
+            let call = peer.call(cleanId + '-host', streamToSend);
+            
+            call.on('stream', rStream => {
+                log("Связь установлена! Экран получен.");
+                remoteVideo.srcObject = rStream;
+                remoteVideo.play().catch(e => console.log(e));
+            });
+        });
+
+        function stopStream() {
+            if(myStream) myStream.getTracks().forEach(t => t.stop());
+            localCameraView.srcObject = null;
+            document.getElementById('startShareBtn').style.display = 'block';
+            document.getElementById('stopShareBtn').style.display = 'none';
+            log("Трансляция остановлена.");
+        }
+        document.getElementById('stopShareBtn').addEventListener('click', stopStream);
+
         window.addEventListener('load', () => {
             renderGroupsList();
             const urlParams = new URLSearchParams(window.location.search);
             const roomParam = urlParams.get('room');
             if (roomParam) {
                 let decodedName = decodeURIComponent(roomParam);
-                // Проверяем, есть ли такая группа в списке, если нет - добавляем
                 if (!groups.some(g => g.name.toLowerCase() === decodedName.toLowerCase())) {
-                    groups.push({ name: decodedName, desc: "Переход по прямой ссылке." });
+                    groups.push({ name: decodedName, desc: "Вход по ссылке." });
                     localStorage.setItem('saved_cyber_groups', JSON.stringify(groups));
                     renderGroupsList();
                 }
@@ -192,31 +253,9 @@
             }
         });
 
-        document.getElementById('autoConnectBtn').addEventListener('click', () => {
-            let cleanId = encodeURIComponent(selectedRoomName.trim().toLowerCase());
-            let fake = new MediaStream();
-            let call = peer.call(cleanId + '-host', combinedStream || fake);
-            call.on('stream', rStream => remoteVideo.srcObject = rStream);
-        });
-
-        document.getElementById('startShareBtn').addEventListener('click', async () => {
-            try {
-                const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                localCameraView.srcObject = cameraStream;
-                const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-                combinedStream = new MediaStream();
-                combinedStream.addTrack(screenStream.getVideoTracks()[0]);
-                combinedStream.addTrack(cameraStream.getAudioTracks()[0]); 
-                document.getElementById('startShareBtn').style.display = 'none';
-                document.getElementById('stopShareBtn').style.display = 'block';
-            } catch (err) { console.error(err); }
-        });
-
         function switchTab(screenId, btn) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
-            if(btn) btn.classList.add('active');
         }
     </script>
 </body>
