@@ -1,0 +1,24 @@
+{
+  "name": "NoSIM Chat",
+  "short_name": "NoSIM",
+  "description": "Messenger prototype with username login instead of SIM verification.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#edf2f4",
+  "theme_color": "#0b6b54",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

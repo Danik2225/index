@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b6b54" />
+    <title>NoSIM Chat</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <main id="app" class="app-shell" aria-live="polite"></main>
+
+    <dialog id="userDialog" class="dialog">
+      <form method="dialog" class="dialog-panel" id="userForm">
+        <div class="dialog-head">
+          <h2>Пользователь</h2>
+          <button class="icon-button" value="cancel" aria-label="Закрыть">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <label>
+          Имя
+          <input name="name" autocomplete="off" maxlength="32" placeholder="Например, Арман" required />
+        </label>
+        <label>
+          NoSIM номер
+          <input name="handle" autocomplete="off" inputmode="numeric" maxlength="16" placeholder="1002" required />
+        </label>
+        <button class="primary-button" value="default">Зарегистрировать</button>
+      </form>
+    </dialog>
+
+    <dialog id="groupDialog" class="dialog">
+      <form method="dialog" class="dialog-panel" id="groupForm">
+        <div class="dialog-head">
+          <h2>Группа</h2>
+          <button class="icon-button" value="cancel" aria-label="Закрыть">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <label>
+          Название
+          <input name="name" autocomplete="off" maxlength="40" placeholder="Например, Команда" required />
+        </label>
+        <div class="check-list" id="groupUserList"></div>
+        <button class="primary-button" value="default">Создать</button>
+      </form>
+    </dialog>
+
+    <dialog id="profileDialog" class="dialog">
+      <form method="dialog" class="dialog-panel" id="profileForm">
+        <div class="dialog-head">
+          <h2>Профиль</h2>
+          <button class="icon-button" value="cancel" aria-label="Закрыть">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <label>
+          Имя
+          <input name="name" autocomplete="off" maxlength="32" required />
+        </label>
+        <label>
+          NoSIM номер
+          <input name="handle" autocomplete="off" inputmode="numeric" maxlength="16" required />
+        </label>
+        <button class="primary-button" value="default">Сохранить</button>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status"></div>
+  </body>
+</html>
